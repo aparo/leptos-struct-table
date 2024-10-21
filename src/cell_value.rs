@@ -12,10 +12,10 @@ pub struct NumberRenderOptions {
 pub trait CellValue {
     /// Formatting options for this cell value type, needs to implement default and have public named fields,
     /// the empty tuple: () is fine if no formatting options can be accepted.
-    type RenderOptions: Default + Clone + 'static;
+    type RenderOptions: Default + Send + Clone + 'static;
 
     /// This is called to actually render the value. The parameter `options` is filled by the `#[table(format(...))]` macro attribute or `Default::default()` if omitted.
-    fn render_value(self, options: &Self::RenderOptions) -> impl IntoView;
+    fn render_value(self, options: Self::RenderOptions) -> impl IntoView;
 }
 
 macro_rules! viewable_identity {
@@ -24,7 +24,7 @@ macro_rules! viewable_identity {
             impl CellValue for $ty {
                 type RenderOptions = ();
 
-                fn render_value(self, _options: &Self::RenderOptions) -> impl IntoView {
+                fn render_value(self, _options: Self::RenderOptions) -> impl IntoView {
                     self
                 }
             }
@@ -41,7 +41,7 @@ macro_rules! viewable_primitive {
         type RenderOptions = ();
 
         #[inline(always)]
-        fn render_value(self, _options: &Self::RenderOptions) -> impl IntoView {
+        fn render_value(self, _options: Self::RenderOptions) -> impl IntoView {
             self.to_string()
         }
       }
@@ -83,7 +83,7 @@ macro_rules! viewable_number_primitive {
         type RenderOptions = NumberRenderOptions;
 
         #[inline(always)]
-        fn render_value(self, options: &Self::RenderOptions) -> impl IntoView {
+        fn render_value(self, options: Self::RenderOptions) -> impl IntoView {
         if let Some(value) = options.precision.as_ref() {
             view! {
                 <>{format!("{:.value$}", self)}</>

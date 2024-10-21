@@ -1,7 +1,6 @@
 #![allow(unused_variables)]
 
 use crate::CellValue;
-
 use leptos::prelude::*;
 
 /// The default cell renderer. Uses the `<td>` element.
@@ -22,9 +21,10 @@ where
     T: CellValue + Clone + Sync + Send + 'static,
     F: Fn(T) + 'static,
 {
-    let cloned_options = options.clone().to_owned();
-    let final_value = value.get().render_value(&cloned_options);
     view! {
-        <td class=class>{final_value}</td>
+        <td class=class>{{
+            value.get().render_value(options.clone())
+        }
+        }</td>
     }
 }
