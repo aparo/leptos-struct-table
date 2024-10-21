@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-use leptos::{view, Fragment, IntoView, View};
-
-#[derive(Default)]
+use leptos::prelude::{AnyView, View};
+use leptos::{view, IntoView};
+#[derive(Default, Clone)]
 pub struct NumberRenderOptions {
     /// Specifies the number of digits to display after the decimal point
     pub precision: Option<usize>,
@@ -12,7 +12,7 @@ pub struct NumberRenderOptions {
 pub trait CellValue {
     /// Formatting options for this cell value type, needs to implement default and have public named fields,
     /// the empty tuple: () is fine if no formatting options can be accepted.
-    type RenderOptions: Default;
+    type RenderOptions: Default + Clone + 'static;
 
     /// This is called to actually render the value. The parameter `options` is filled by the `#[table(format(...))]` macro attribute or `Default::default()` if omitted.
     fn render_value(self, options: &Self::RenderOptions) -> impl IntoView;
@@ -32,7 +32,7 @@ macro_rules! viewable_identity {
     };
 }
 
-viewable_identity![String, &'static str, Cow<'static, str>, View, Fragment];
+viewable_identity![String, &'static str, Cow<'static, str>, AnyView]; /* , View<T>, Fragment */
 
 macro_rules! viewable_primitive {
   ($($child_type:ty),* $(,)?) => {

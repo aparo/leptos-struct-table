@@ -1,61 +1,84 @@
-use leptos::html::ElementDescriptor;
-use leptos::{NodeRef, Signal};
-use leptos_use::core::ElementMaybeSignal;
+use std::ops::Deref;
+
+use leptos::html::{Body, ElementType};
+use leptos::prelude::*;
+use leptos_use::core::{ElementMaybeSignal, IntoElementMaybeSignal};
 use leptos_use::use_document;
+use std::fmt::Debug;
+// use send_wrapper::SendWrapper;
 use wasm_bindgen::JsCast;
-
-#[derive(Copy, Clone, Debug)]
-pub struct ScrollContainer(Signal<Option<web_sys::Element>>);
-
-impl Default for ScrollContainer {
-    fn default() -> Self {
-        Self(Signal::derive(move || {
-            use_document()
-                .body()
-                .as_ref()
-                .map(|w| w.unchecked_ref::<web_sys::Element>().clone())
-        }))
-    }
-}
-
-impl From<web_sys::Element> for ScrollContainer {
-    fn from(element: web_sys::Element) -> Self {
-        Self(Signal::derive(move || Some(element.clone())))
-    }
-}
-
-impl From<Option<web_sys::Element>> for ScrollContainer {
-    fn from(element: Option<web_sys::Element>) -> Self {
-        Self(Signal::derive(move || element.clone()))
-    }
-}
-
-impl<T> From<NodeRef<T>> for ScrollContainer
+#[derive(Clone)]
+pub struct ScrollContainer<E>(Option<NodeRef<E>>)
 where
-    T: ElementDescriptor + Clone + 'static,
+    E: ElementType + 'static,
+    E::Output: 'static;
+// E::Output: JsCast + Clone + Deref<Target = web_sys::HtmlElement> + 'static;
+
+// unsafe impl Send for ScrollContainer {}
+// unsafe impl Sync for ScrollContainer {}
+
+impl<E> Default for ScrollContainer<E>
+where
+    E: ElementType + 'static,
+    E::Output: JsCast + Clone + Deref<Target = web_sys::HtmlElement> + 'static,
+{
+    fn default() -> Self {
+        let node_ref = use_document().body().as_ref().map(|w| {
+            let element: web_sys::Element = w.unchecked_ref::<web_sys::Element>().clone();
+            let node_ref = NodeRef::<E>::new();
+            node_ref
+        });
+
+        Self(node_ref)
+    }
+}
+// impl From<web_sys::Element> for ScrollContainer {
+//     fn from(element: web_sys::Element) -> Self {
+//         Self(Some(element.clone()))
+//     }
+// }
+
+// impl From<Option<web_sys::Element>> for ScrollContainer {
+//     fn from(element: Option<web_sys::Element>) -> Self {
+//         Self(element.clone())
+//     }
+// }
+
+impl<T> From<NodeRef<T>> for ScrollContainer<T>
+where
+    T: ElementType + 'static,
+    T::Output: 'static,
 {
     fn from(node_ref: NodeRef<T>) -> Self {
-        Self(Signal::derive(move || {
-            node_ref.get().map(|el| {
-                let el: &web_sys::Element = &el.into_any();
-                el.clone()
-            })
-        }))
+        Self(Some(node_ref))
     }
 }
 
-impl From<&str> for ScrollContainer {
-    fn from(selector: &str) -> Self {
-        let selector = selector.to_owned();
+// impl<T> From<NodeRef<T>> for ScrollContainer<T>
+// where
+//     T: ElementType + 'static,
+//     T::Output: JsCast + Clone + Deref<Target = web_sys::HtmlElement> + 'static,
+// {
+//     fn from(node_ref: NodeRef<T>) -> Self {
+//         Self(node_ref.try_read_untracked().map(|el| {
+//             let el: &web_sys::Element = &el.into_any();
+//             el.clone()
+//         }))
+//     }
+// }
 
-        Self(Signal::derive(move || {
-            use_document().query_selector(&selector).unwrap_or_default()
-        }))
-    }
-}
+// impl From<&str> for ScrollContainer {
+//     fn from(selector: &str) -> Self {
+//         let selector = selector.to_owned();
 
-impl From<ScrollContainer> for ElementMaybeSignal<web_sys::Element, web_sys::Element> {
-    fn from(scroll_container: ScrollContainer) -> Self {
-        scroll_container.0.into()
-    }
-}
+//         Self(Signal::derive(move || {
+//             use_document().query_selector(&selector).unwrap_or_default()
+//         }))
+//     }
+// }
+
+// impl<M> From<ScrollContainer> for ElementMaybeSignal<web_sys::Element, M> {
+//     fn from(scroll_container: ScrollContainer) -> Self {
+//         scroll_container.0.into()
+//     }
+// }

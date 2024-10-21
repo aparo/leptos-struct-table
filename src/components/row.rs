@@ -1,6 +1,6 @@
 use crate::table_row::TableRow;
 use crate::{ChangeEvent, EventHandler};
-use leptos::*;
+use leptos::prelude::*;
 
 /// The default table row renderer. Uses the `<tr>` element. Please note that this
 /// is **NOT** a `#[component]`.
@@ -20,7 +20,7 @@ pub fn DefaultTableRowRenderer<Row>(
     on_change: EventHandler<ChangeEvent<Row>>,
 ) -> impl IntoView
 where
-    Row: TableRow + Clone + 'static,
+    Row: TableRow + Clone + Sync + Send + 'static,
 {
     view! {
         <tr class=class on:click=move |mouse_event| on_select.run(mouse_event)>
@@ -56,8 +56,8 @@ pub fn DefaultLoadingRowRenderer(
         <tr class=class>
             {
                 (0..col_count).map(|col_index| view! {
-                    <td class=get_cell_class.call(col_index)>
-                        <div class=get_inner_cell_class.call(col_index)></div>
+                    <td class=get_cell_class.run(col_index)>
+                        <div class=get_inner_cell_class.run(col_index)></div>
                         " "
                     </td>
                 }).collect_view()

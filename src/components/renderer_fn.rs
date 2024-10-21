@@ -5,19 +5,19 @@ macro_rules! renderer_fn {
     ) => {
         #[derive(Clone)]
         pub struct $name<$($ty),*> (
-            Rc<dyn Fn($($arg_ty),*) -> View>,
+            Rc<dyn Fn($($arg_ty),*) -> leptos::prelude::AnyView>,
         )
         where $($clause)*;
 
         impl<F, Ret, $($ty),*> From<F> for $name<$($ty),*>
         where
-            F: Fn($($arg_ty),*) -> Ret + 'static,
-            Ret: IntoView,
+            F: Fn($($arg_ty),*) -> Ret + Send + Sync + 'static,
+            Ret: IntoView + Send + Sync + 'static,
             $($clause)*
         {
             fn from(f: F) -> Self {
                 Self(Rc::new(move |$($arg_name),*| {
-                    f($($arg_name),*).into_view()
+                    f($($arg_name),*).into_view().into_any()
                 }))
             }
         }
@@ -25,7 +25,7 @@ macro_rules! renderer_fn {
         impl<$($ty),*> $name <$($ty),*>
         where $($clause)*
         {
-            pub fn run(&self, $($arg_name: $arg_ty),*) -> View {
+            pub fn run(&self, $($arg_name: $arg_ty),*) -> leptos::prelude::AnyView {
                 (self.0)($($arg_name),*)
             }
         }
@@ -46,7 +46,7 @@ macro_rules! renderer_fn {
         {
             fn default() -> Self {
                 Self(Rc::new(move |$($arg_name),*| {
-                    $default($($arg_name),*).into_view()
+                    $default($($arg_name),*).into_view().into_any()
                 }))
             }
         }

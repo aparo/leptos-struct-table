@@ -1,9 +1,9 @@
 use leptos::ev::MouseEvent;
-use std::rc::Rc;
+use std::{ops::Deref, sync::Arc};
 
 /// The event provided to the `on_change` prop of the table component
 #[derive(Debug, Clone)]
-pub struct ChangeEvent<Row: Clone> {
+pub struct ChangeEvent<Row: Clone + Sync + Send> {
     /// The index of the table row that contains the cell that was changed. Starts at 0.
     pub row_index: usize,
     /// The index of the table column that contains the cell that was changed. Starts at 0.
@@ -14,7 +14,7 @@ pub struct ChangeEvent<Row: Clone> {
 
 /// The event provided to the `on_selection_change` prop of the table component
 #[derive(Debug, Clone)]
-pub struct SelectionChangeEvent<Row: Clone> {
+pub struct SelectionChangeEvent<Row: Clone + Sync + Send> {
     /// `true` is the row was selected, `false` if it was de-selected.
     pub selected: bool,
     /// The index of the row that was de-/selected.
@@ -54,7 +54,7 @@ macro_rules! impl_default_rc_fn {
         }
 
         impl<F, $($ty),*> From<F> for $name<$($ty),*>
-            where F: Fn($($arg_ty),*) $(-> $ret_ty)? + 'static
+            where F: Fn($($arg_ty),*) $(-> $ret_ty)? + Send + Sync + 'static
         {
             fn from(f: F) -> Self { Self(Rc::new(f)) }
         }
@@ -67,10 +67,68 @@ macro_rules! impl_default_rc_fn {
     }
 }
 
-impl_default_rc_fn!(
-    /// New type wrapper of a closure that takes a parameter `T`. This allows the event handler props
-    /// to be optional while being able to take a simple closure.
-    EventHandler<T>(event: T)
-);
+#[derive(Clone)]
+pub struct EventHandler<A>(Arc<dyn Fn(A) -> () + Send + Sync + 'static>);
+
+impl<A> EventHandler<A> {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: Fn(A) -> () + Send + Sync + 'static,
+    {
+        Self(Arc::new(f))
+    }
+
+    pub fn run(&self, event: A) {
+        (self.0)(event);
+    }
+}
+
+impl<A> Default for EventHandler<A> {
+    fn default() -> Self {
+        Self(Arc::new(|_| {}))
+    }
+}
+
+impl<A> Deref for EventHandler<A> {
+    type Target = Arc<dyn Fn(A) -> () + Send + Sync + 'static>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<F, A> From<F> for EventHandler<A>
+where
+    F: Fn(A) -> () + Send + Sync + 'static,
+{
+    fn from(value: F) -> Self {
+        Self::new(value)
+    }
+}
+
+// #[doc = r" New type wrapper of a closure that takes a parameter `T`. This allows the event handler props"]
+// #[doc = r" to be optional while being able to take a simple closure."]
+// #[derive(Clone)]
+// pub struct EventHandler<T: 'static>(Rc<dyn Fn(T)>);
+
+// impl<T: Send + Sync + 'static> Default for EventHandler<T> {
+//     fn default() -> Self {
+//         #[allow(unused_variables)]
+//         Self(Rc::new(|event: T| {}))
+//     }
+// }
+// impl<F, T> From<F> for EventHandler<T>
+// where
+//     F: Fn(T) + 'static,
+// {
+//     fn from(f: F) -> Self {
+//         Self(Rc::new(f))
+//     }
+// }
+// impl<T: Send + Sync + 'static> EventHandler<T> {
+//     pub fn run(&self, event: T) {
+//         (self.0)(event)
+//     }
+// }
 
 pub(crate) use impl_default_rc_fn;

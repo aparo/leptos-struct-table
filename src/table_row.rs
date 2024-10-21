@@ -1,5 +1,5 @@
 use crate::{ChangeEvent, ColumnSort, EventHandler, TableClassesProvider, TableHeadEvent};
-use leptos::*;
+use leptos::prelude::*;
 use std::collections::VecDeque;
 
 /// This trait has to implemented in order for [`TableContent`] to be able to render rows and the head row of the table.
@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 ///
 /// Please see the [simple example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/simple/src/main.rs)
 /// for how to use.
-pub trait TableRow: Clone {
+pub trait TableRow: Clone + Send + Sync {
     type ClassesProvider: TableClassesProvider + Copy;
 
     /// How many columns this row has (i.e. the number of fields in the struct)
@@ -35,7 +35,7 @@ pub trait TableRow: Clone {
     /// For example:
     /// ```
     /// # use leptos_struct_table::*;
-    /// # use leptos::*;
+    /// # use leptos::prelude::*;
     /// #
     /// #[derive(TableRow, Clone)]
     /// struct Person {

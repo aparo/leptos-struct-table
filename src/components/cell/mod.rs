@@ -2,7 +2,7 @@
 
 use crate::CellValue;
 
-use leptos::*;
+use leptos::prelude::*;
 
 /// The default cell renderer. Uses the `<td>` element.
 #[component]
@@ -19,10 +19,12 @@ pub fn DefaultTableCellRenderer<T, F>(
     options: T::RenderOptions,
 ) -> impl IntoView
 where
-    T: CellValue + Clone + 'static,
+    T: CellValue + Clone + Sync + Send + 'static,
     F: Fn(T) + 'static,
 {
+    let cloned_options = options.clone().to_owned();
+    let final_value = value.get().render_value(&cloned_options);
     view! {
-        <td class=class>{value.get().render_value(&options)}</td>
+        <td class=class>{final_value}</td>
     }
 }
