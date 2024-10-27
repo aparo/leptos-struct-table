@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 ///
 /// Please see the [simple example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/simple/src/main.rs)
 /// for how to use.
-pub trait TableRow: Clone + Send + Sync {
+pub trait TableRow: Clone + Send + Sync + 'static {
     type ClassesProvider: TableClassesProvider + Copy;
 
     /// How many columns this row has (i.e. the number of fields in the struct)
@@ -26,7 +26,7 @@ pub trait TableRow: Clone + Send + Sync {
         on_head_click: F,
     ) -> impl IntoView
     where
-        F: Fn(TableHeadEvent) + Clone + 'static;
+        F: Fn(TableHeadEvent) + Send + Sync + Clone + 'static;
 
     /// The name of the column (= struct field name) at the given index. This can be used to implement
     /// sorting in a database. It takes the `#[table(skip)]` attributes into account. `col_index`

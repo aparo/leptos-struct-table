@@ -8,7 +8,7 @@ use std::fmt::Debug;
 // use send_wrapper::SendWrapper;
 use wasm_bindgen::JsCast;
 #[derive(Clone)]
-pub struct ScrollContainer<E>(Option<NodeRef<E>>)
+pub struct ScrollContainer<E>(pub Option<NodeRef<E>>)
 where
     E: ElementType + 'static,
     E::Output: 'static;

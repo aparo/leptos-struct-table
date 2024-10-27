@@ -12,11 +12,14 @@ use leptos::tachys::view::any_view::AnyView;
 ///
 /// This render function has to render exactly one root element.
 #[allow(non_snake_case)]
-pub fn DefaultTableBodyRenderer(
-    content: AnyView,
+pub fn DefaultTableBodyRenderer<T>(
+    content: View<T>,
     class: Signal<String>,
     node_ref: NodeRef<Tbody>,
-) -> impl IntoView {
+) -> impl IntoView
+where
+    T: Sized + Render + RenderHtml + Send,
+{
     let tbody_ref = NodeRef::<Tbody>::new();
     tbody_ref.try_with_untracked(move |e| e.as_ref().map(|f| node_ref.load(&f)));
 

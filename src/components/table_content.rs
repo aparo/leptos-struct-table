@@ -1,19 +1,17 @@
-use crate::components::renderer_fn::renderer_fn;
 use crate::loaded_rows::{LoadedRows, RowState};
 use crate::selection::Selection;
 use crate::table_row::TableRow;
 use crate::{
-    ChangeEvent, ColumnSort, DefaultErrorRowRenderer, DefaultLoadingRowRenderer,
-    DefaultRowPlaceholderRenderer, DefaultTableBodyRenderer, DefaultTableHeadRenderer,
-    DefaultTableHeadRowRenderer, DefaultTableRowRenderer, DisplayStrategy, EventHandler,
-    ReloadController, RowReader, ScrollContainer, SelectionChangeEvent, SortingMode,
-    TableClassesProvider, TableDataProvider, TableHeadEvent,
+    ChangeEvent, ColumnSort, DefaultTableRenderer, DisplayStrategy, EventHandler, ReloadController,
+    RowReader, ScrollContainer, SelectionChangeEvent, SortingMode, TableClassesProvider,
+    TableDataProvider, TableHeadEvent,
 };
-use leptos::html::{ElementType, Tbody};
+use leptos::html::{Div, ElementType, Tbody};
 // use leptos::html::AnyElement;
 // use leptos::leptos_dom::is_browser;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_use::core::IntoElementMaybeSignal;
 use leptos_use::{
     use_debounce_fn, use_element_size_with_options, use_scroll_with_options, UseElementSizeOptions,
     UseElementSizeReturn, UseScrollOptions, UseScrollReturn,
@@ -24,7 +22,10 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::{Deref, Range};
 use std::rc::Rc;
+use std::sync::Arc;
 use wasm_bindgen::JsCast;
+
+use super::TableRender;
 
 const MAX_DISPLAY_ROW_COUNT: usize = 500;
 
@@ -41,45 +42,83 @@ fn is_server() -> bool {
     }
 }
 
-renderer_fn!(
-    RowRendererFn<Row>(
-        class: Signal<String>,
-        row: Row,
-        index: usize,
-        selected: Signal<bool>,
-        on_select: EventHandler<web_sys::MouseEvent>,
-        on_change: EventHandler<ChangeEvent<Row>>
-    )
-    default DefaultTableRowRenderer
-    where Row: TableRow + Clone + Send + Sync + 'static
-);
+// renderer_fn!(
+//     RowRendererFn<Row>(
+//         class: Signal<String>,
+//         row: Row,
+//         index: usize,
+//         selected: Signal<bool>,
+//         on_select: EventHandler<web_sys::MouseEvent>,
+//         on_change: EventHandler<ChangeEvent<Row>>
+//     )
+//     default DefaultTableRowRenderer
+//     where Row: TableRow + Clone + Send + Sync + 'static
+// );
 
-renderer_fn!(
-    RowPlaceholderRendererFn(height: Signal<f64>)
-    default DefaultRowPlaceholderRenderer
-);
+// renderer_fn!(
+//     RowPlaceholderRendererFn(height: Signal<f64>)
+//     default DefaultRowPlaceholderRenderer
+// );
 
-renderer_fn!(
-    WrapperRendererFn(view: AnyView, class: Signal<String>)
-);
+// #[derive(Clone)]
+// pub struct RowPlaceholderRendererFn<T>(Rc<dyn Fn(Signal<f64>) -> View<T>>)
+// where
+//     T: Sized;
 
-renderer_fn!(
-    TbodyRendererFn(view: AnyView, class: Signal<String>, node_ref: NodeRef<Tbody>)
-);
+// impl<F, Ret> From<F> for RowPlaceholderRendererFn<Ret>
+// where
+//     F: Fn(Signal<f64>) -> Ret + Send + Sync + 'static,
+//     Ret: Sized + Render + RenderHtml + Send + 'static,
+// {
+//     fn from(f: F) -> Self {
+//         Self(Rc::new(move |height| f(height).into_view()))
+//     }
+// }
+// impl<T> RowPlaceholderRendererFn<T>
+// where
+//     T: Sized,
+// {
+//     pub fn run(&self, height: Signal<f64>) -> View<T> {
+//         (self.0)(height)
+//     }
+// }
 
-renderer_fn!(
-    ErrorRowRendererFn(err: String, index: usize, col_count: usize)
-    default DefaultErrorRowRenderer
-);
+// impl<T> Default for RowPlaceholderRendererFn<T>
+// where
+//     T: IntoView,
+// {
+//     fn default() -> Self {
+//         Self(Rc::new(move |height| {
+//             DefaultRowPlaceholderRenderer(height).into_view()
+//         }))
+//     }
+// }
 
-renderer_fn!(
-    LoadingRowRendererFn(class: Signal<String>, get_cell_class: Callback<usize, String>, get_cell_inner_class: Callback<usize, String>, index: usize, col_count: usize)
-    default DefaultLoadingRowRenderer
-);
+// // renderer_fn!(
+// //     WrapperRendererFn(view: View<T>, class: Signal<String>)
+// // );
+
+// renderer_fn!(
+//     WrapperRendererFn(view: View<T>, class: Signal<String>)
+// );
+
+// renderer_fn!(
+//     TbodyRendererFn(view:  View<T>, class: Signal<String>, node_ref: NodeRef<Tbody>)
+// );
+
+// renderer_fn!(
+//     ErrorRowRendererFn(err: String, index: usize, col_count: usize)
+//     //default DefaultErrorRowRenderer
+// );
+
+// renderer_fn!(
+//     LoadingRowRendererFn(class: Signal<String>, get_cell_class: Callback<usize, String>, get_cell_inner_class: Callback<usize, String>, index: usize, col_count: usize)
+//     //default DefaultLoadingRowRenderer
+// );
 
 /// Render the content of a table. This is the main component of this crate.
 #[component]
-pub fn TableContent<Row, DataP, Err, ClsP, E>(
+pub fn TableContent<Row, DataP, Err, ClsP, E, Renderer>(
     /// The data to be rendered in this table.
     /// This must implement [`TableDataProvider`] or [`PaginatedTableDataProvider`].
     rows: DataP,
@@ -103,37 +142,39 @@ pub fn TableContent<Row, DataP, Err, ClsP, E>(
     /// See the [selectable example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/selectable/src/main.rs) for details.
     #[prop(optional, into)]
     on_selection_change: EventHandler<SelectionChangeEvent<Row>>,
-    /// Renderer function for the table head. Defaults to [`DefaultTableHeadRenderer`]. For a full example see the
-    /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
-    #[prop(default = DefaultTableHeadRenderer.into(), into)]
-    thead_renderer: WrapperRendererFn,
-    /// Renderer function for the table body. Defaults to [`DefaultTableBodyRenderer`]. For a full example see the
-    /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
-    #[prop(default = DefaultTableBodyRenderer.into(), into)]
-    tbody_renderer: TbodyRendererFn,
-    /// Renderer function for the table head row. Defaults to [`DefaultTableHeadRowRenderer`]. For a full example see the
-    /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
-    #[prop(default = DefaultTableHeadRowRenderer.into(), into)]
-    thead_row_renderer: WrapperRendererFn,
-    /// The row renderer. Defaults to [`DefaultTableRowRenderer`]. For a full example see the
-    /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
-    #[prop(optional, into)]
-    row_renderer: RowRendererFn<Row>,
-    /// The row renderer for when that row is currently being loaded.
-    /// Defaults to [`DefaultLoadingRowRenderer`]. For a full example see the
-    /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
-    #[prop(optional, into)]
-    loading_row_renderer: LoadingRowRendererFn,
-    /// The row renderer for when that row failed to load.
-    /// Defaults to [`DefaultErrorRowRenderer`]. For a full example see the
-    /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
-    #[prop(optional, into)]
-    error_row_renderer: ErrorRowRendererFn,
-    /// The row placeholder renderer. Defaults to [`DefaultRowPlaceholderRenderer`].
-    /// This is used in place of rows that are not shown
-    /// before and after the currently visible rows.
-    #[prop(optional, into)]
-    row_placeholder_renderer: RowPlaceholderRendererFn,
+    // /// Renderer function for the table head. Defaults to [`DefaultTableHeadRenderer`]. For a full example see the
+    // /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
+    // #[prop(default = DefaultTableHeadRenderer.into(), into)]
+    // thead_renderer: WrapperRendererFn,
+    // #[prop(default = DefaultTableRenderer.into())]
+    table_rendered: Renderer,
+    // /// Renderer function for the table body. Defaults to [`DefaultTableBodyRenderer`]. For a full example see the
+    // /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
+    // #[prop(default = DefaultTableBodyRenderer.into(), into)]
+    // tbody_renderer: TbodyRendererFn,
+    // /// Renderer function for the table head row. Defaults to [`DefaultTableHeadRowRenderer`]. For a full example see the
+    // /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
+    // #[prop(default = DefaultTableHeadRowRenderer.into(), into)]
+    // thead_row_renderer: WrapperRendererFn,
+    // /// The row renderer. Defaults to [`DefaultTableRowRenderer`]. For a full example see the
+    // /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
+    // #[prop(optional, into)]
+    // row_renderer: RowRendererFn<Row>,
+    // /// The row renderer for when that row is currently being loaded.
+    // /// Defaults to [`DefaultLoadingRowRenderer`]. For a full example see the
+    // /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
+    // #[prop(optional, into)]
+    // loading_row_renderer: LoadingRowRendererFn,
+    // /// The row renderer for when that row failed to load.
+    // /// Defaults to [`DefaultErrorRowRenderer`]. For a full example see the
+    // /// [custom_renderers_svg example](https://github.com/Synphonyte/leptos-struct-table/blob/master/examples/custom_renderers_svg/src/main.rs).
+    // #[prop(optional, into)]
+    // error_row_renderer: ErrorRowRendererFn,
+    // /// The row placeholder renderer. Defaults to [`DefaultRowPlaceholderRenderer`].
+    // /// This is used in place of rows that are not shown
+    // /// before and after the currently visible rows.
+    // #[prop(optional, into)]
+    // row_placeholder_renderer: RowPlaceholderRendererFn,
     /// Additional classes to add to rows
     #[prop(optional, into)]
     row_class: MaybeSignal<String>,
@@ -198,6 +239,7 @@ pub fn TableContent<Row, DataP, Err, ClsP, E>(
 where
     Row: TableRow<ClassesProvider = ClsP> + Clone + Sync + Send + 'static,
     DataP: TableDataProvider<Row, Err> + 'static,
+    Renderer: TableRender<Row, Err> + Clone + Send + Sync + 'static,
     Err: Debug,
     ClsP: TableClassesProvider + Copy + Sync + Send + 'static,
     E: ElementType + 'static,
@@ -205,6 +247,7 @@ where
 {
     let on_change = StoredValue::new(on_change);
     let rows = Rc::new(RefCell::new(rows));
+    let table_rendered = Rc::new(RefCell::new(table_rendered));
 
     let class_provider = ClsP::new();
 
@@ -225,7 +268,7 @@ where
 
     let first_selected_index = RwSignal::new(None::<usize>);
 
-    let (row_count, set_row_count) = create_signal(None::<usize>);
+    let (row_count, set_row_count) = signal(None::<usize>);
 
     let set_known_row_count = move |row_count: usize| {
         set_row_count.set(Some(row_count));
@@ -325,13 +368,15 @@ where
         Selection::Multiple(selected_indices) => selected_indices.into(),
     };
 
+    let element = NodeRef::<Div>::new();
+    // let (y, set_y) = signal(100.0);
     let UseScrollReturn { y, set_y, .. } = use_scroll_with_options(
-        scroll_container.into(),
+        element, //scroll_container.into(),
         UseScrollOptions::default().throttle(100.0),
     );
 
     let UseElementSizeReturn { height, .. } = use_element_size_with_options(
-        scroll_container.into(),
+        element, //scroll_container.into(),
         UseElementSizeOptions::default().box_(web_sys::ResizeObserverBoxOptions::ContentBox),
     );
 
@@ -528,13 +573,14 @@ where
     let thead_content = Row::render_head_row(sorting.into(), on_head_click).into_view();
 
     let tbody_content = {
-        let row_renderer = row_renderer.clone();
-        let loading_row_renderer = loading_row_renderer.clone();
-        let error_row_renderer = error_row_renderer.clone();
+        let table_rendered = table_rendered.clone();
+        // let row_renderer = table_rendered. .row_renderer;
+        // let loading_row_renderer = loading_row_renderer.clone();
+        // let error_row_renderer = error_row_renderer.clone();
         let on_selection_change = on_selection_change.clone();
 
         view! {
-            {row_placeholder_renderer.run(placeholder_height_before.into())}
+            {table_rendered.get_mut().row_placeholder_renderer(placeholder_height_before.into())}
 
             <For
                 each=move || {
@@ -559,9 +605,11 @@ where
                 }
 
                 children={
-                    let row_renderer = row_renderer.clone();
-                    let loading_row_renderer = loading_row_renderer.clone();
-                    let error_row_renderer = error_row_renderer.clone();
+                    let table_rendered = Rc::clone(&table_rendered);
+
+                    // let row_renderer = row_renderer.clone();
+                    // let loading_row_renderer = loading_row_renderer.clone();
+                    // let error_row_renderer = error_row_renderer.clone();
                     let on_selection_change = on_selection_change.clone();
                     move |(i, row)| {
                         match row {
@@ -585,22 +633,20 @@ where
                                         on_selection_change.run(selection_change_event);
                                     }
                                 };
-                                row_renderer
-                                    .run(
+                                table_rendered.get_mut().row_renderer(
                                         class_signal,
                                         row,
                                         i,
                                         selected_signal,
                                         on_select.into(),
                                         on_change.get_value(),
-                                    )
+                                    ).into_any()
                             }
                             RowState::Error(err) => {
-                                error_row_renderer.run(err, i, Row::COLUMN_COUNT)
+                                table_rendered.get_mut().error_row_renderer(err, i, Row::COLUMN_COUNT).into_any()
                             }
                             RowState::Loading | RowState::Placeholder => {
-                                loading_row_renderer
-                                    .run(
+                                table_rendered.get_mut().loading_row_renderer(
                                         Signal::derive(move || {
                                             class_provider.row(i, false, &row_class.get())
                                         }),
@@ -618,22 +664,24 @@ where
                                         }),
                                         i,
                                         Row::COLUMN_COUNT,
-                                    )
+                                    ).into_any()
                             }
                         }
                     }
                 }
             />
 
-            {row_placeholder_renderer.run(placeholder_height_after.into())}
+            {table_rendered.get_mut().row_placeholder_renderer(placeholder_height_after.into())}
         }
     };
 
-    let tbody = tbody_renderer.run(tbody_content.into_any(), tbody_class, tbody_ref);
+    let tbody =
+        table_rendered
+            .get_mut()
+            .tbody_renderer(tbody_content.into_any(), tbody_class, tbody_ref);
 
     view! {
-        {thead_renderer
-            .run(thead_row_renderer.run(thead_content.into_any(), thead_row_class).into_any(), thead_class)}
+        {table_rendered.get_mut().thead_renderer(table_rendered.get_mut().thead_row_renderer(thead_content.into_any(), thead_row_class).into_any(), thead_class)}
 
         {tbody}
     }

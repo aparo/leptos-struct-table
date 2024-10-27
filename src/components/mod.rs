@@ -1,13 +1,12 @@
 mod cell;
+mod renderer;
 mod renderer_fn;
-mod row;
 mod table_content;
 mod tbody;
 mod thead;
-
 pub use cell::*;
 use leptos::{prelude::*, tachys::view::any_view::AnyView};
-pub use row::*;
+pub use renderer::*;
 pub use table_content::*;
 pub use tbody::*;
 pub use thead::*;
@@ -30,7 +29,10 @@ macro_rules! wrapper_render_fn {
         /// * `class` - The class attribute that is passed to the root element
         $(#[$additional_doc])*
         #[allow(non_snake_case)]
-        pub fn $name<T>(content: leptos::prelude::AnyView, class: Signal<String>) -> impl IntoView {
+        pub fn $name<T>(content: leptos::prelude::View<T>, class: Signal<String>)-> impl IntoView
+        where
+            T: Sized + Render + RenderHtml + Send,
+          {
             view! {
                 <$tag class=class>
                     {content}
