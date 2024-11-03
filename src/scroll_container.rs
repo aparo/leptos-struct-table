@@ -55,12 +55,15 @@ impl From<&str> for ScrollContainer {
         let selector = selector.to_owned();
 
         Self(Signal::derive(move || {
-            use_document().query_selector(&selector).unwrap_or_default()
+            use_document()
+                .query_selector(&selector)
+                .unwrap_or_default()
+                .map(SendWrapper::new)
         }))
     }
 }
 
-impl From<ScrollContainer> for ElementMaybeSignal<web_sys::Element, web_sys::Element> {
+impl From<ScrollContainer> for ElementMaybeSignal<web_sys::Element> {
     fn from(scroll_container: ScrollContainer) -> Self {
         scroll_container.0.into()
     }

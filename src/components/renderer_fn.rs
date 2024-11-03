@@ -9,13 +9,14 @@ macro_rules! renderer_fn {
         )
         where $($clause)*;
 
-        impl<F, Ret, $($ty),*> From<F> for $name<$($ty),*>
+        impl<F, Ret: 'static, $($ty),*> From<F> for $name<$($ty),*>
         where
             F: Fn($($arg_ty),*) -> Ret + 'static,
             Ret: IntoView,
             $($clause)*
         {
-            fn from(f: F) -> Self {
+            fn from(f: F) -> Self
+            where <Ret as leptos::prelude::Render>::State: 'static{
                 Self(Rc::new(move |$($arg_name),*| {
                     f($($arg_name),*).into_any()
                 }))

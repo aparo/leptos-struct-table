@@ -1,4 +1,4 @@
-use leptos::prelude::*;
+use leptos::{html::Tbody, prelude::*};
 
 /// Default tbody renderer. Please note that this is **NOT** a `#[component]`.
 ///
@@ -11,13 +11,14 @@ use leptos::prelude::*;
 /// This render function has to render exactly one root element.
 #[allow(non_snake_case)]
 pub fn DefaultTableBodyRenderer(
-    content: impl IntoView,
+    content: AnyView,
     class: Signal<String>,
-    node_ref: NodeRef<web_sys::Element>,
-) -> impl IntoView {
+    node_ref: NodeRef<Tbody>,
+) -> AnyView {
     view! {
         <tbody class=class node_ref=node_ref>
             {content}
         </tbody>
     }
+    .into_any()
 }

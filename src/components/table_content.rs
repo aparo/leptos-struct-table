@@ -9,6 +9,7 @@ use crate::{
     ReloadController, RowReader, ScrollContainer, SelectionChangeEvent, SortingMode,
     TableClassesProvider, TableDataProvider, TableHeadEvent,
 };
+use leptos::html::{ElementType, Tbody};
 use leptos::prelude::*;
 use leptos::spawn::spawn_local;
 use leptos::tachys::view::any_view::AnyView;
@@ -16,13 +17,12 @@ use leptos_use::{
     use_debounce_fn, use_element_size_with_options, use_scroll_with_options, UseElementSizeOptions,
     UseElementSizeReturn, UseScrollOptions, UseScrollReturn,
 };
-use std::cell::RefCell;
 use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::ops::Range;
+use std::ops::{Deref, Range};
 use std::rc::Rc;
-use std::sync::Arc;
+use wasm_bindgen::JsCast;
 
 const MAX_DISPLAY_ROW_COUNT: usize = 500;
 
@@ -45,11 +45,11 @@ renderer_fn!(
 );
 
 renderer_fn!(
-    WrapperRendererFn(view: AnyView<Dom>, class: Signal<String>)
+    WrapperRendererFn(view: AnyView, class: Signal<String>)
 );
 
 renderer_fn!(
-    TbodyRendererFn(view: AnyView<Dom>, class: Signal<String>, node_ref: NodeRef<web_sys::Element>)
+    TbodyRendererFn(view: AnyView, class: Signal<String>, node_ref: NodeRef<Tbody>)
 );
 
 renderer_fn!(
@@ -365,7 +365,7 @@ where
         .into()
     };
 
-    let tbody_ref = NodeRef::new();
+    let tbody_ref = NodeRef::<Tbody>::new();
 
     let compute_average_row_height = use_debounce_fn(
         move || {
@@ -631,8 +631,8 @@ where
     }
 }
 
-fn compute_average_row_height_from_loaded<Row, ClsP>(
-    tbody_ref: NodeRef<web_sys::Element>,
+fn compute_average_row_height_from_loaded<Row, ClsP, E>(
+    tbody_ref: NodeRef<E>,
     display_range: ReadSignal<Range<usize>>,
     y: Signal<f64>,
     set_y: &impl Fn(f64),
@@ -640,7 +640,9 @@ fn compute_average_row_height_from_loaded<Row, ClsP>(
     placeholder_height_before: Signal<f64>,
     loaded_rows: RwSignal<LoadedRows<Row>>,
 ) where
-    Row: TableRow<ClassesProvider = ClsP> + Clone + 'static,
+    Row: TableRow<ClassesProvider = ClsP> + Clone + Send + Sync + 'static,
+    E: ElementType + 'static,
+    E::Output: JsCast + Clone + Deref<Target = web_sys::HtmlElement> + 'static,
 {
     if let Some(el) = tbody_ref.get_untracked() {
         let el: &web_sys::Element = &el;

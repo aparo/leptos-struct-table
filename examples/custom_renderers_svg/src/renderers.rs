@@ -87,7 +87,7 @@ pub fn SvgLoadingRowRenderer(
 
     view! {
         <g class=class transform=transform>
-            <text x="0" y=ROW_HEIGHT_HALF class=get_inner_cell_class.call(0) dominant-baseline="central">
+            <text x="0" y=ROW_HEIGHT_HALF class=get_inner_cell_class.run(0) dominant-baseline="central">
                 Loading...
             </text>
         </g>
