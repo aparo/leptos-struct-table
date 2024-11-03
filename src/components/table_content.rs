@@ -26,6 +26,19 @@ use wasm_bindgen::JsCast;
 
 const MAX_DISPLAY_ROW_COUNT: usize = 500;
 
+fn is_browser() -> bool {
+    #[cfg(feature = "hydration")]
+    {
+        Owner::current_shared_context()
+            .map(|sc| sc.is_browser())
+            .unwrap_or(false)
+    }
+    #[cfg(not(feature = "hydration"))]
+    {
+        true
+    }
+}
+
 renderer_fn!(
     RowRendererFn<Row>(
         class: Signal<String>,
