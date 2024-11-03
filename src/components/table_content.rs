@@ -11,8 +11,8 @@ use crate::{
 };
 use leptos::html::{ElementType, Tbody};
 use leptos::prelude::*;
-use leptos::spawn::spawn_local;
 use leptos::tachys::view::any_view::AnyView;
+use leptos::task::spawn_local;
 use leptos_use::{
     use_debounce_fn, use_element_size_with_options, use_scroll_with_options, UseElementSizeOptions,
     UseElementSizeReturn, UseScrollOptions, UseScrollReturn,
