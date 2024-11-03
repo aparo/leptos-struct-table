@@ -580,7 +580,7 @@ where
         let on_selection_change = on_selection_change.clone();
 
         view! {
-            {table_rendered.get_mut().row_placeholder_renderer(placeholder_height_before.into())}
+            {table_rendered.borrow().row_placeholder_renderer(placeholder_height_before.into())}
 
             <For
                 each=move || {
@@ -633,7 +633,7 @@ where
                                         on_selection_change.run(selection_change_event);
                                     }
                                 };
-                                table_rendered.get_mut().row_renderer(
+                                table_rendered.borrow().row_renderer(
                                         class_signal,
                                         row,
                                         i,
@@ -643,10 +643,10 @@ where
                                     ).into_any()
                             }
                             RowState::Error(err) => {
-                                table_rendered.get_mut().error_row_renderer(err, i, Row::COLUMN_COUNT).into_any()
+                                table_rendered.borrow().error_row_renderer(err, i, Row::COLUMN_COUNT).into_any()
                             }
                             RowState::Loading | RowState::Placeholder => {
-                                table_rendered.get_mut().loading_row_renderer(
+                                table_rendered.borrow().loading_row_renderer(
                                         Signal::derive(move || {
                                             class_provider.row(i, false, &row_class.get())
                                         }),
