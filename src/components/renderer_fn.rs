@@ -27,7 +27,7 @@ macro_rules! renderer_fn {
         where $($clause)*
         {
             pub fn run(&self, $($arg_name: $arg_ty),*) -> AnyView {
-                (self.0)($($arg_name),*)
+                (self.0)($($arg_name),*).into_any()
             }
         }
     };

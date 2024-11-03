@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use leptos::html::ElementType;
 use leptos::prelude::*;
 use leptos_use::core::ElementMaybeSignal;
@@ -38,7 +40,7 @@ impl From<Option<web_sys::Element>> for ScrollContainer {
 impl<E> From<NodeRef<E>> for ScrollContainer
 where
     E: ElementType,
-    E::Output: 'static,
+    E::Output: JsCast + Clone + Deref<Target = web_sys::HtmlElement> + 'static,
 {
     fn from(node_ref: NodeRef<E>) -> Self {
         Self(Signal::derive(move || {

@@ -517,7 +517,7 @@ where
         }
     });
 
-    let thead_content = Row::render_head_row(sorting.into(), on_head_click).into_view();
+    let thead_content = Row::render_head_row(sorting.into(), on_head_click).into_any();
 
     let tbody_content = {
         let row_renderer = row_renderer.clone();
@@ -632,13 +632,13 @@ where
 
             {row_placeholder_renderer.run(placeholder_height_after.into())}
         }
-    };
+    }.into_any();
 
     let tbody = tbody_renderer.run(tbody_content, tbody_class, tbody_ref);
 
     view! {
         {thead_renderer
-            .run(thead_row_renderer.run(thead_content, thead_row_class).into_view(), thead_class)}
+            .run(thead_row_renderer.run(thead_content, thead_row_class).into_any(), thead_class)}
 
         {tbody}
     }
