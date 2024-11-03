@@ -5,7 +5,7 @@ macro_rules! renderer_fn {
     ) => {
         #[derive(Clone)]
         pub struct $name<$($ty),*> (
-            Rc<dyn Fn($($arg_ty),*) -> AnyView<Dom>>,
+            Rc<dyn Fn($($arg_ty),*) -> AnyView>,
         )
         where $($clause)*;
 
@@ -17,7 +17,7 @@ macro_rules! renderer_fn {
         {
             fn from(f: F) -> Self {
                 Self(Rc::new(move |$($arg_name),*| {
-                    f($($arg_name),*).into_view()
+                    f($($arg_name),*).into_any()
                 }))
             }
         }
@@ -25,7 +25,7 @@ macro_rules! renderer_fn {
         impl<$($ty),*> $name <$($ty),*>
         where $($clause)*
         {
-            pub fn run(&self, $($arg_name: $arg_ty),*) -> AnyView<Dom> {
+            pub fn run(&self, $($arg_name: $arg_ty),*) -> AnyView {
                 (self.0)($($arg_name),*)
             }
         }
@@ -46,7 +46,7 @@ macro_rules! renderer_fn {
         {
             fn default() -> Self {
                 Self(Rc::new(move |$($arg_name),*| {
-                    $default($($arg_name),*).into_view()
+                    $default($($arg_name),*).into_any()
                 }))
             }
         }
